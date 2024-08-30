@@ -1,0 +1,36 @@
+{
+    "type": "AdaptiveCard",
+    "body": [
+        {
+            "type": "TextBlock",
+            "size": "Large",
+            "weight": "Bolder",
+            "text": "Welcome to AI Ticket Assistant Chatbot",
+            "style": "heading",
+            "wrap": true,
+            "horizontalAlignment": "Left",
+            "spacing": "None"
+        },
+        {
+            "type": "TextBlock",
+            "text": "The AI Ticket Assistant chatbot streamlines IT support by automating ticket creation, classification, and resolution, enhancing efficiency, reducing response times, and providing 24/7 assistance for common technical issues.",
+            "wrap": true
+        }
+    ],
+    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+    "version": "1.3",
+    "actions": [
+        {
+            "type": "Action.Submit",
+            "title": "Raise STG Issue",
+            "style": "positive",
+            "data": {"verb": "ITSMService"}
+        },
+        {
+            "type": "Action.Submit",
+            "title": "Check Ticket Status",
+            "style": "positive",
+            "data": {"verb": "TicketStatus"}
+        }
+    ]
+}

@@ -1,0 +1,10 @@
+python-dotenv
+aiohttp
+teams-ai
+langchain
+openai
+langchain-openai
+requests
+langchain-chroma
+bs4
+sqlite3

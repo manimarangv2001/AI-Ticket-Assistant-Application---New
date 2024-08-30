@@ -1,0 +1,42 @@
+{
+    "type": "AdaptiveCard",
+    "body": [
+        {
+            "type": "TextBlock",
+            "text": "Related Form Details",
+            "size": "ExtraLarge",
+            "style": "heading",
+            "horizontalAlignment": "Center"
+        },
+        {
+            "type": "TextBlock",
+            "size": "Large",
+            "weight": "Bolder",
+            "text": "${Title}"
+        },
+        {
+            "type": "TextBlock",
+            "size": "Medium",
+            "weight": "Bolder",
+            "text": "${ShortDescription}"
+        },
+        {
+            "type": "TextBlock",
+            "text": "${Description}",
+            "wrap": true
+        },
+        {
+            "type": "ActionSet",
+            "actions": [
+                {
+                    "type": "Action.Submit",
+                    "title": "Get Started",
+                    "style": "positive",
+                    "data": {"verb": "SimilarResultForm", "sys_id": "${data}"}
+                }
+            ]
+        }
+    ],
+    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+    "version": "1.3"
+}
