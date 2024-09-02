@@ -13,7 +13,12 @@
         },
         {
             "type": "TextBlock",
-            "text": "The AI Ticket Assistant chatbot streamlines IT support by automating ticket creation, classification, and resolution, enhancing efficiency, reducing response times, and providing 24/7 assistance for common technical issues.",
+            "text": "The AI Ticket Assistant chatbot streamlines IT support by automating ticket creation, and resolution and providing 24/7 assistance for common technical issues.",
+            "wrap": true
+        },
+        {
+            "type": "TextBlock",
+            "text": "How can I help you today?",
             "wrap": true
         }
     ],
@@ -22,7 +27,7 @@
     "actions": [
         {
             "type": "Action.Submit",
-            "title": "Raise STG Issue",
+            "title": "Raise Request",
             "style": "positive",
             "data": {"verb": "ITSMService"}
         },

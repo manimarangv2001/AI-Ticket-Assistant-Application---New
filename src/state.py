@@ -19,13 +19,24 @@ class AppUserState(UserState):
 
 class AppConversationState(ConversationState):
     missingParam: bool = False
-    listOfQnA: List[Dict[str, str]] = []
+    listOfQnA: Dict[str, str] = {}
     listOfQuestions: Dict[str, str] = {}
     index_count: int = 0
+
     catalog_item = {}
-    
     conversationType: Dict[str, str] = {}
     userQuery = ""
+
+    variable_List = []
+    catalog_item_description = []
+    parse_variable_details = []
+    arranged_api_request = {}
+    missing_mandatory_variables = []
+
+    similar_catalog_items = []
+
+    Request = ""
+    Request_Item = ""
 
     @classmethod
     async def load(cls, context: TurnContext, storage: Optional[Storage] = None) -> "AppConversationState":
@@ -33,7 +44,7 @@ class AppConversationState(ConversationState):
         return cls(**state)
 
 class AppTempState(TempState):
-    catalog_item_descriptions = []
+    
 
     @classmethod
     async def load(cls, context: TurnContext, storage: Optional[Storage] = None) -> "AppTempState":

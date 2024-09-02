@@ -2,34 +2,28 @@
   "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",  
   "type": "AdaptiveCard",  
   "version": "1.2",  
-  "body": [  
+  "body": [   
     {  
       "type": "TextBlock",  
-      "size": "Medium",  
-      "weight": "Bolder",  
-      "text": "Software Services Request"  
-    },  
-    {  
-      "type": "TextBlock",  
-      "text": "Request for Software Services",  
+      "text": "Here what I plan to request for you:",  
       "wrap": true  
-    },   
-    {  
-      "type": "TextBlock",  
-      "text": "Please select Business Function/Request Type to display delivery time",  
-      "wrap": true  
-    },  
-    {  
-      "type": "TextBlock",  
-      "text": "Mandatory Fields",  
-      "weight": "Bolder",  
-      "wrap": true  
+    },
+    {
+      "type": "TextBlock",
+      "text": "",
+      "wrap": true
     }
   ],
   "actions": [  
     {  
       "type": "Action.Submit",  
-      "title": "Submit Request"  
-    }  
+      "title": "Submit",
+      "data": {"verb": "ValidationSubmit"} 
+    },
+    {  
+      "type": "Action.Submit",  
+      "title": "Make changes",
+      "data": {"verb": "MakeChanges"} 
+    }    
   ]  
 }  

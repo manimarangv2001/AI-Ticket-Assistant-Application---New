@@ -1,7 +1,15 @@
 import os
 from langchain.schema import HumanMessage
 import json
-from .servicenow_api_activity import get_table_sysid, get_specific_catalog_item, get_table_values, get_table_response
+from .servicenow_api_activity import (get_table_sysid,
+                                      get_specific_catalog_item, 
+                                      get_table_values, 
+                                      get_table_response, 
+                                      get_tableValue_via_link,
+                                      add_cart, 
+                                      request_item_api_call,
+                                      submit_order
+                                      )
 from langchain_openai import AzureOpenAIEmbeddings, AzureChatOpenAI 
 from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
 from langchain_core.prompts import PromptTemplate
@@ -9,8 +17,10 @@ import re
 import sqlite3
 
 model = AzureChatOpenAI(
-    openai_api_version=os.environ["AZURE_OPENAI_API_VERSION"],
-    azure_deployment=os.environ["AZURE_OPENAI_CHAT_DEPLOYMENT_NAME"],
+    api_key="107c20f6b6774c80b98c6f6a828f6374",
+    azure_deployment="gpt-4",
+    azure_endpoint="https://2000081253-openai.openai.azure.com/",
+    api_version="2023-03-15-preview"
 )
 
 def fetchVariables(data, variables_name):
@@ -19,6 +29,7 @@ def fetchVariables(data, variables_name):
     
     from the given data Return only the variables name as a key and variable description as a value in JSON.
     The description must describe contains choices and ui_policy too as a single output
+    Variable Description must contain all choices without leave
     The variablename should be one of the name from the given List. {variables_name}
     And no premable or explaination.
 
@@ -30,7 +41,7 @@ def fetchVariables(data, variables_name):
     prompt_template = PromptTemplate(template=template, input_variables=["data", variables_name])
     chain = prompt_template | model | JsonOutputParser()
     response = chain.invoke({"data": data, "variables_name": variables_name})
-    print(response)
+    # # # print(response)
     return response
 
 
@@ -60,10 +71,12 @@ def function_calling_catVar(catalog_variables, catalog_item_description, variabl
     for variable_info in catalog_variables:
         if "children" in variable_info:
             for child_var_info in variable_info["children"]:
-                # print(child_var_info)
+                # # # print(child_var_info)
                 custom_functions = create_custom_function(child_var_info, custom_functions, variables_description)
         else:
             custom_functions = create_custom_function(variable_info, custom_functions, variables_description)
+    # print(catalog_item_description)
+    print(custom_functions)
     return custom_functions
 
 
@@ -114,7 +127,7 @@ def fetch_ui_actions(action_field, catalog_variables):
     for action_variables in action_field:
         action_variable_id = action_variables["name"].split(":")[1] 
         for variable in catalog_variables:
-            # print(f"{variable["id"]} = {action_variable_id}")
+            # # # print(f"{variable["id"]} = {action_variable_id}")
             if(variable["id"] == action_variable_id):
                 ui_action_variable_list.append({"name": variable["name"], "mandatory": action_variables["mandatory"]})
     
@@ -152,8 +165,7 @@ def get_valuefor_reqfor(variable_info, variables_template, fetched_variables):
         fetched_variables[variable_info["name"]] = sys_id
         return fetched_variables, variables_template
 
-
-def get_valuefor_reference(variable_info, variables_template, fetched_variables):
+def get_valuefor_reference(variable_info, variables_template, fetched_variables, dynamic_value_dot_walk_path):
     reference = variable_info["reference"] # u_software
 
     sample_table_response = get_table_response(reference)
@@ -164,7 +176,7 @@ def get_valuefor_reference(variable_info, variables_template, fetched_variables)
 
     if(variable_info["name"] in fetched_variables):
         value_for_query = fetched_variables[variable_info["name"]] # python
-        sys_id = get_table_sysid(reference, sysparm_for_query, value_for_query)["result"][0]["sys_id"]
+        sys_id = get_table_sysid(reference, sysparm_for_query, value_for_query)["result"][0][dynamic_value_dot_walk_path]
         variables_template[variable_info["name"]] = sys_id
         
     return fetched_variables, variables_template
@@ -173,7 +185,21 @@ def get_valuefor_reference(variable_info, variables_template, fetched_variables)
 def is_valid_sys_id(value):
     return bool(re.fullmatch(r"[0-9a-fA-F]{32}", value))
 
+def get_dynamicvalues_name(link):
+    table_content = get_tableValue_via_link(link)
+    # print(table_content)
+    value = ""
+    if("name" in table_content['result']):
+        value = table_content['result']['name']
+    elif("u_name" in table_content):
+        value = table_content["result"]['u_name']
+    return value
+
+
+
+
 def get_valuefor_dynamicvalues(variables_List, variable_info, variables_template, fetched_variables):
+
     for variables in variables_List:
         if(variables["id"] == variable_info["dynamic_value_field"]):
             reference = variables["reference"]
@@ -186,30 +212,33 @@ def get_valuefor_dynamicvalues(variables_List, variable_info, variables_template
             if("result" in requireddetails):
                 resultValue = requireddetails["result"]
                 if(isinstance(resultValue, list)):
+                    # print(resultValue)
                     if(0<len(resultValue)):
                         requireddetails = resultValue[0][variable_info["dynamic_value_dot_walk_path"]]
             finalDetail = ""
             # print(requireddetails)
             if("value" in requireddetails):
                 finalDetail = requireddetails["value"]
+                fetched_variables[variable_info["name"]] = get_dynamicvalues_name(requireddetails["link"])
             else:
                 finalDetail = requireddetails
-            
+                fetched_variables[variable_info["name"]] = finalDetail
             variables_template[variable_info["name"]] = finalDetail
+
+    # print(fetched_variables)
+
     return fetched_variables, variables_template
-
-
 
 
 def assign_complex_variables(fetched_variables, variables_template, variables_List):
     variables_template = combine_values(fetched_variables, variables_template)
     for variable_info in variables_List:
-        print(variable_info["name"])
+        # print(variable_info["name"])
         if(variable_info["type"] == 31):            # for requested_for type
             fetched_variables, variables_template = get_valuefor_reqfor(variable_info, variables_template, fetched_variables)
 
         elif(variable_info["name"] in fetched_variables and variable_info["type"] == 8):
-            fetched_variables, variables_template = get_valuefor_reference(variable_info, variables_template, fetched_variables)
+            fetched_variables, variables_template = get_valuefor_reference(variable_info, variables_template, fetched_variables, "sys_id")
 
         elif (variable_info["dynamic_value_field"] != ""):
             fetched_variables, variables_template = get_valuefor_dynamicvalues(variables_List, variable_info, variables_template, fetched_variables)
@@ -217,18 +246,24 @@ def assign_complex_variables(fetched_variables, variables_template, variables_Li
 
 def fetch_mandatory_variables(variables_template, ui_policy,variables_List):
     missing_mandatory_variables = []
+    ui_based_mandatory_variables = []
     for variable in variables_List:
-        if(variable["mandatory"] == True and variables_template[variable["name"]] == ""):
-            missing_mandatory_variables.append(variable["name"])
+        if(variable["mandatory"] == True):
+            if(variables_template[variable["name"]] == ""):
+                missing_mandatory_variables.append(variable["name"])
+            ui_based_mandatory_variables.append(variable["name"])
     for ui_condition in ui_policy:
         if(ui_condition["condition_operation"] == "="):
-            if(variables_template[ui_condition["condition_variable_name"]] == ui_condition["condition_variable_value"]):
+            value = variables_template[ui_condition["condition_variable_name"]]
+            if(value == ui_condition["condition_variable_value"]):
                 ui_actions = ui_condition["ui_actions"]
                 for ui_action in ui_actions:
-                    if(ui_action["mandatory"] == "true" and variables_template[ui_action["name"]] == ""):
-                        missing_mandatory_variables.append(ui_action["name"])
+                    if(ui_action["mandatory"] == "true"):
+                        if(variables_template[ui_action["name"]] == ""):
+                            missing_mandatory_variables.append(ui_action["name"])
+                        ui_based_mandatory_variables.append(ui_action["name"])
                     
-    return variables_template, missing_mandatory_variables
+    return variables_template, missing_mandatory_variables, ui_based_mandatory_variables
 
 def fetch_desc_using_sys_id(sys_id):
     db_path = "c:\\Users\\2000081253\\Desktop\\Work\\AI-Copilot-Ticket-Assistant\\src\\Document_Store\\catalog_item_db\\chroma.sqlite3"
@@ -249,38 +284,81 @@ def fetch_desc_using_sys_id(sys_id):
 
 
 
-def prepare_api_request(user_query, sys_id):
-    catalog_item_description = fetch_desc_using_sys_id(sys_id)
+def fetch_variables_from_query(user_query, sys_id, similar_catalog_items):
+    catalog_item_description = ""
+    for similar_catalog_item in similar_catalog_items:
+        if(similar_catalog_item["sys_id"] == sys_id):
+            catalog_item_description = similar_catalog_item["page_content"]
+
+
+    # catalog_item_description = fetch_desc_using_sys_id(sys_id)
     catalog_item = get_specific_catalog_item(sys_id)
     catalog_variables = catalog_item["result"]["variables"]
-    ui_policy = fetch_ui_policy(catalog_item, get_all_variables_List(catalog_variables))
+    all_variables = get_all_variables_List(catalog_variables)
+    ui_policy = fetch_ui_policy(catalog_item, all_variables)
     variables_List = []
     variables_template = {}
     variables_name = []
-    for variable in get_all_variables_List(catalog_variables):
+    for variable in all_variables:
         variable = set_reference_value(variable)
         variables_List.append(variable)
         variables_name.append(variable["name"])
-        variables_template[variable["name"]] = variable["displayvalue"]
-        
+        value = variable["value"]
+        if(value == True):
+            variables_template[variable["name"]] = "true"
+        elif(value == False):
+            variables_template[variable["name"]] = "false"
+        else:
+            variables_template[variable["name"]] = value
+    print(variables_template)
     custom_function = function_calling_catVar(variables_List, catalog_item_description, variables_name)
+    print(custom_function)
     message = model.predict_messages(
     [HumanMessage(content=f"user query: {user_query}")],
     functions = custom_function
     )
 
-    print(variables_List)
+    # print(variables_List)
     # print(custom_function)
     # print(json.dumps(message.__dict__))
-
-
-
-    catalog_item["result"]["variables"] = variables_List
 
     if message.additional_kwargs != {}:
         # print("The "additional_kwargs" attribute exists.")
         parse_variable_details = json.loads(message.additional_kwargs["function_call"]["arguments"])
-        parse_variable_details,variables_template = assign_complex_variables(parse_variable_details,variables_template, variables_List)
-        variables_template, missing_mandatory_variables = fetch_mandatory_variables(variables_template, ui_policy,variables_List)
-            
-    return catalog_item, catalog_item_description, parse_variable_details, variables_template, missing_mandatory_variables
+        for variable in parse_variable_details:
+            if(parse_variable_details[variable] == True):
+                parse_variable_details[variable] = 'true'
+            if(parse_variable_details[variable] == False):
+                parse_variable_details[variable] = 'false'
+        
+        parse_variable_details,variables_template= assign_complex_variables(parse_variable_details,variables_template, variables_List)
+        variables_template, missing_mandatory_variables, ui_based_mandatory_variables = fetch_mandatory_variables(variables_template, ui_policy,variables_List)
+        
+        final_parse_variable_details = {}
+        print(f"parse variable : {parse_variable_details}")
+        for variable in parse_variable_details:
+            # print(variable)
+            if (variable in ui_based_mandatory_variables):
+                final_parse_variable_details[variable] = parse_variable_details[variable]
+
+    return variables_List,catalog_item_description, final_parse_variable_details, variables_template, missing_mandatory_variables
+
+
+def submit_catalog_item(sys_id, api_template):
+    card_id = add_cart_item(sys_id, api_template)
+    submit_result = submit_order(card_id)
+    request_sys_id = submit_result["result"]["request_id"]
+    return request_sys_id
+
+
+def add_cart_item(sys_id, api_template):
+    add_cart_response = add_cart(sys_id, api_template)
+    print(add_cart_response)
+    cart_id = add_cart_response["result"]["cart_id"]
+    # print(cart_id)
+    return cart_id
+
+def get_request_item(request_sys_id):
+    request_item_result = request_item_api_call(request_sys_id)
+    return request_item_result
+

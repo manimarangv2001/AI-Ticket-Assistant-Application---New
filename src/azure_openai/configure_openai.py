@@ -8,9 +8,16 @@ from langchain_core.prompts import PromptTemplate
 from dotenv import load_dotenv
 load_dotenv()
 
-embedding_function = AzureOpenAIEmbeddings(model="Text-embedding")
+embedding_function = AzureOpenAIEmbeddings(
+    azure_endpoint="https://2000081253-openai.openai.azure.com/",
+    api_key="107c20f6b6774c80b98c6f6a828f6374",
+    azure_deployment="Text-embedding",
+    api_version="2023-03-15-preview"
+    )
 
 model = AzureChatOpenAI(
-    openai_api_version=os.environ["AZURE_OPENAI_API_VERSION"],
-    azure_deployment=os.environ["AZURE_OPENAI_CHAT_DEPLOYMENT_NAME"],
+    api_key="107c20f6b6774c80b98c6f6a828f6374",
+    azure_deployment="gpt-4",
+    azure_endpoint="https://2000081253-openai.openai.azure.com/",
+    api_version="2023-03-15-preview"
 )

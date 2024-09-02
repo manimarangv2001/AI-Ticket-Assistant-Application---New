@@ -10,6 +10,7 @@ def formatter(docs):
         metadata = doc[0].metadata
         metadata['description'] = fetchDescribe(doc[0].page_content)
         metadata['relavent_score'] = doc[1]
+        metadata['page_content'] = doc[0].page_content
         result.append(metadata)
     return result
 
